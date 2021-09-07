@@ -1,7 +1,6 @@
 package com.example.speechdemo;
 
-import androidx.appcompat.app.AppCompatActivity;
-
+import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.speech.RecognizerIntent;
@@ -10,18 +9,24 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AppCompatActivity;
+
 import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final int REQUEST_SPEECH_RECOGNIZER = 3000;
     private TextView mTextView;
     private final String mQuestion = "Which company is the largest online retailer on the planet?";
     private String mAnswer = "";
     private Button ttsButton;
     private Button sttButton;
     private TextToSpeech ttsObject;
+    private String TAG = "mainAct";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,7 +48,11 @@ public class MainActivity extends AppCompatActivity {
         sttButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                startSpeechRecognizer();
+                Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                intent.putExtra(RecognizerIntent.EXTRA_PROMPT, mQuestion);
+                // The launcher with the Intent you want to start
+                mStartForResult.launch(intent);
             }
         });
 
@@ -58,43 +67,43 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+
+
     private void startTextToSpeech()
     {
         ttsObject.speak(mQuestion, TextToSpeech.QUEUE_FLUSH, null, "Question");
     }
 
-    private void startSpeechRecognizer() {
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, mQuestion);
-        startActivityForResult(intent, REQUEST_SPEECH_RECOGNIZER);
-    }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        String response;
-        if (requestCode == REQUEST_SPEECH_RECOGNIZER) {
-            if (resultCode == RESULT_OK) {
-                List<String> results = data.getStringArrayListExtra
-                        (RecognizerIntent.EXTRA_RESULTS);
-                if (results != null) {
-                    mAnswer = results.get(0);
-                }
+    ActivityResultLauncher<Intent> mStartForResult = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback<ActivityResult>() {
+                @Override
+                public void onActivityResult(ActivityResult result) {
+                    if (result.getResultCode() == Activity.RESULT_OK) {
+                        Intent intentData = result.getData();
+                        // Handle the Intent
+                        String response;
+                        List<String> results = null;
+                        if (intentData != null) {
+                            results = intentData.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                        }
+                        if (results != null) {
+                            mAnswer = results.get(0);
+                        }
 
-                if (mAnswer.toUpperCase().contains("AMAZON"))
-                {
-                    response = "\n\nQuestion: " + mQuestion + "\n\nYour answer is '" + mAnswer + "' and it is correct!";
-                    mTextView.setText(response);
+                        if (mAnswer.toUpperCase().contains("AMAZON"))
+                        {
+                            response = "\n\nQuestion: " + mQuestion + "\n\nYour answer is '" + mAnswer + "' and it is correct!";
+                            mTextView.setText(response);
+                        }
+                        else
+                        {
+                            response = "\n\nQuestion: " + mQuestion + "\n\nYour answer is '" + mAnswer + "' and it is incorrect!";
+                            mTextView.setText(response);
+                        }
+                    }
                 }
-                else
-                {
-                    response = "\n\nQuestion: " + mQuestion + "\n\nYour answer is '" + mAnswer + "' and it is incorrect!";
-                    mTextView.setText(response);
-                }
-            }
-        }
-    }
+            });
 }
 
 
